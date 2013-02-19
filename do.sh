@@ -1,0 +1,1 @@
+p -E '$d=PPI::Document->new($ARGV[0]);S Perl::MinimumVersion->new($d)->minimum_version;%v=map{$_=>Module::CoreList->first_release($_)//999}Perl::PrereqScanner->new->scan_ppi_document($d)->required_modules;p%v' rainbarf/rainbarf
