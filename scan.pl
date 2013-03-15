@@ -16,10 +16,10 @@ delete $mod->{perl};
 my %modver = map {
     defined Module::CoreList::removed_from($_) 
         ? ($_ => dualvar 999 => q(removed from CORE))
-        : $_ => (
+        : ($_ => (
             Module::CoreList::first_release($_ => $mod->{$_})
               => dualvar 999 => q(not in CORE)
-        )[0]
+        ) [0])
 } keys %$mod;
 
 print $ver, qq(\n);
