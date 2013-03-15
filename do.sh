@@ -1,1 +1,1 @@
-p -E '$d=PPI::Document->new($ARGV[0]);S Perl::MinimumVersion->new($d)->minimum_version;%v=map{$_=>Module::CoreList->first_release($_)//999}Perl::PrereqScanner->new->scan_ppi_document($d)->required_modules;p%v' rainbarf/rainbarf
+p -E '$d=PPI::Document->new($ARGV[0]);$v=Perl::MinimumVersion->new($d)->minimum_version;%v=map{defined(Module::CoreList->removed_from($_))?($_=>999):($_=>Module::CoreList->first_release($_)//998)}Perl::PrereqScanner->new->scan_ppi_document($d)->required_modules;&p({map{$_=>$v{$_}}grep{/^perl$/?0:$v{$_}>$v}keys%v})' rainbarf/rainbarf
