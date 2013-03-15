@@ -22,9 +22,15 @@ my %modver = map {
         ) [0])
 } keys %$mod;
 
-print $ver, qq(\n);
+print $ver => qq(\n);
 print Dumper {
-    map  { $_   => q...$modver{$_} }
-    grep { $ver  < 0 + $modver{$_} }
-    keys %modver
+    map {
+        $_ . (
+            $mod->{$_}
+                ? qq( $mod->{$_})
+                : ''
+        )   => q...$modver{$_}
+    } grep {
+        $ver < 0 + $modver{$_}
+    } keys %modver
 };
