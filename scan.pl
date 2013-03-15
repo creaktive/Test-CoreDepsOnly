@@ -3,7 +3,7 @@ use 5.010;
 use strict;
 use warnings qw(all);
 
-use Data::Printer;
+use Data::Dumper;
 
 use Module::CoreList;
 use Perl::MinimumVersion;
@@ -20,8 +20,9 @@ my %v = map {
         : ($_ => Module::CoreList->first_release($_ => $m->{$_}) // 998)
 } keys %$m;
 
-&p({
+say $v;
+say Dumper {
     map { $_ => $v{$_} }
     grep { $v < $v{$_} }
     keys %v
-});
+};
