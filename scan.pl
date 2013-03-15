@@ -1,28 +1,30 @@
 #!/usr/bin/env perl
-use 5.010;
 use strict;
 use warnings qw(all);
 
 use Data::Dumper;
-
 use Module::CoreList;
 use Perl::MinimumVersion;
 use Perl::PrereqScanner;
+use Scalar::Util qw(dualvar);
 
-my $d = PPI::Document->new($ARGV[0]);
-my $v = Perl::MinimumVersion->new($d)->minimum_version;
-my $m = Perl::PrereqScanner->new->scan_ppi_document($d)->as_string_hash;
-delete $m->{perl};
+my $doc = PPI::Document->new(@ARGV ? $ARGV[0] : __FILE__);
+my $ver = Perl::MinimumVersion->new($doc)->minimum_version;
+my $mod = Perl::PrereqScanner->new->scan_ppi_document($doc)->as_string_hash;
+delete $mod->{perl};
 
-my %v = map {
-    defined(Module::CoreList->removed_from($_))
-        ? ($_ => 999)
-        : ($_ => Module::CoreList->first_release($_ => $m->{$_}) // 998)
-} keys %$m;
+my %modver = map {
+    defined Module::CoreList::removed_from($_) 
+        ? ($_ => dualvar 999 => q(removed from CORE))
+        : $_ => (
+            Module::CoreList::first_release($_ => $mod->{$_})
+              => dualvar 999 => q(not in CORE)
+        )[0]
+} keys %$mod;
 
-say $v;
-say Dumper {
-    map { $_ => $v{$_} }
-    grep { $v < $v{$_} }
-    keys %v
+print $ver, qq(\n);
+print Dumper {
+    map  { $_   => q...$modver{$_} }
+    grep { $ver  < 0 + $modver{$_} }
+    keys %modver
 };
