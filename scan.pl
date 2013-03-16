@@ -11,8 +11,8 @@ use Scalar::Util qw(dualvar);
 my $doc = PPI::Document->new(@ARGV ? $ARGV[0] : __FILE__);
 my $ver = Perl::MinimumVersion->new($doc)->minimum_version;
 my $mod = Perl::PrereqScanner->new->scan_ppi_document($doc)->as_string_hash;
-delete $mod->{perl};
 
+delete $mod->{perl};
 my %modver = map {
     defined Module::CoreList::removed_from($_) 
         ? ($_ => dualvar 999 => q(removed from CORE))
@@ -22,15 +22,15 @@ my %modver = map {
         ) [0])
 } keys %$mod;
 
-print $ver => qq(\n);
 print Dumper {
     map {
         $_ . (
             $mod->{$_}
-                ? qq( $mod->{$_})
+                ? qq( v$mod->{$_})
                 : ''
         )   => q...$modver{$_}
     } grep {
         $ver < 0 + $modver{$_}
     } keys %modver
 };
+print $ver => qq(\n);
