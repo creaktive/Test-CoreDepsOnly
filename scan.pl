@@ -29,17 +29,17 @@ while (my $file = $iter->()) {
     }
 }
 
-print Dumper {
-    map {
-        $_ . (
-            $modver{$maxver{$_}->{guilty}}->{$_}
-                ? qq( $modver{$maxver{$_}->{guilty}}->{$_})
-                : ''
-        )   => $maxver{$_}
-    } grep {
-        $maxver{perl}->{status} < 0 + $maxver{$_}->{status}
-    } keys %maxver
-};
+my %final = map {
+    $_ . (
+        $modver{$maxver{$_}->{guilty}}->{$_}
+            ? qq( $modver{$maxver{$_}->{guilty}}->{$_})
+            : ''
+    )   => $maxver{$_}
+} grep {
+    $maxver{perl}->{status} < 0 + $maxver{$_}->{status}
+} keys %maxver;
+
+print Dumper \%final;
 
 sub dependency_versions {
     my ($file) = @_;
