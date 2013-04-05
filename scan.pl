@@ -20,13 +20,7 @@ my $iter = $rule->iter(q(.));
 
 my (%maxver, %modver);
 while (my $file = $iter->()) {
-    my ($status, $modver) = dependency_versions($file);
-    $modver{$file} = $modver;
-    while (my ($modname, $perlver) = each %{$status}) {
-        $maxver{$modname} = { status => $perlver, guilty => $file }
-            if not exists $maxver{$modname}
-            or $maxver{$modname}->{status} < $perlver;
-    }
+    _scan_file($file);
 }
 
 my %final;
@@ -41,10 +35,13 @@ for my $modname (keys %maxver) {
 
 print Dumper \%final;
 
-sub dependency_versions {
+sub _dependency_versions {
     my ($file) = @_;
     my $doc = PPI::Document->new($file);
-    my $mod = Perl::PrereqScanner->new->scan_ppi_document($doc)->as_string_hash;
+    my $mod = Perl::PrereqScanner
+        ->new
+        ->scan_ppi_document($doc)
+        ->as_string_hash;
 
     my $ver = defined $mod->{perl}
         ? delete $mod->{perl}
@@ -65,4 +62,18 @@ sub dependency_versions {
 
     $status{perl} = $mod->{perl} = $ver;
     return \%status => $mod;
+}
+
+sub _scan_file {
+    my ($file) = @_;
+    my ($status, $modver) = _dependency_versions($file);
+    $modver{$file} = $modver;
+
+    while (my ($modname, $perlver) = each %{$status}) {
+        $maxver{$modname} = { status => $perlver, guilty => $file }
+            if not exists $maxver{$modname}
+            or $maxver{$modname}->{status} < $perlver;
+    }
+
+    return;
 }
