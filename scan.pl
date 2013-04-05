@@ -29,15 +29,15 @@ while (my $file = $iter->()) {
     }
 }
 
-my %final = map {
-    $_ . (
-        $modver{$maxver{$_}->{guilty}}->{$_}
-            ? qq( $modver{$maxver{$_}->{guilty}}->{$_})
-            : ''
-    )   => $maxver{$_}
-} grep {
-    $maxver{perl}->{status} < 0 + $maxver{$_}->{status}
-} keys %maxver;
+my %final;
+for my $modname (keys %maxver) {
+    next if $maxver{perl}->{status} >= $maxver{$modname}->{status};
+    my $info = $maxver{$modname};
+    my $guilty = $info->{guilty};
+    $modname .= qq( $modver{$guilty}->{$modname})
+        if $modver{$guilty}->{$modname};
+    $final{$modname} = $info;
+}
 
 print Dumper \%final;
 
