@@ -3,22 +3,42 @@ use strict;
 use warnings qw(all);
 
 use Data::Dumper;
+
 use Module::CoreList 2.77;
+use Path::Iterator::Rule;
 use Perl::MinimumVersion;
 use Perl::PrereqScanner;
 use Scalar::Util qw(dualvar);
 
-my ($status, $modver) = dependency_versions(@ARGV ? $ARGV[0] : __FILE__);
+my $rule = Path::Iterator::Rule->new
+    ->skip_vcs
+    ->skip_dirs(qw(blib))
+    ->perl_file
+    ->not_name(qr/^(?:Build|Makefile)(?:\.PL)?$/x);
+#my $iter = $rule->iter(q(../rainbarf));
+my $iter = $rule->iter(q(.));
+
+my (%maxver, %modver);
+while (my $file = $iter->()) {
+    my ($status, $modver) = dependency_versions($file);
+    $modver{$file} = $modver;
+    while (my ($modname, $perlver) = each %{$status}) {
+        $maxver{$modname} = { status => $perlver, guilty => $file }
+            if not exists $maxver{$modname}
+            or $maxver{$modname}->{status} < $perlver;
+    }
+}
+
 print Dumper {
     map {
         $_ . (
-            $modver->{$_}
-                ? qq( $modver->{$_})
+            $modver{$maxver{$_}->{guilty}}->{$_}
+                ? qq( $modver{$maxver{$_}->{guilty}}->{$_})
                 : ''
-        )   => q...$status->{$_}
+        )   => $maxver{$_}
     } grep {
-        $status->{perl} < 0 + $status->{$_}
-    } keys %$status
+        $maxver{perl}->{status} < 0 + $maxver{$_}->{status}
+    } keys %maxver
 };
 
 sub dependency_versions {
