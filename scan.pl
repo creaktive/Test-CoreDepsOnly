@@ -15,8 +15,8 @@ my $rule = Path::Iterator::Rule->new
     ->skip_dirs(qw(blib))
     ->perl_file
     ->not_name(qr/^(?:Build|Makefile)(?:\.PL)?$/x);
-#my $iter = $rule->iter(q(../rainbarf));
-my $iter = $rule->iter(q(.));
+my $iter = $rule->iter(q(../rainbarf));
+# my $iter = $rule->iter(q(.));
 
 my (%maxver, %modver);
 while (my $file = $iter->()) {
