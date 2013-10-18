@@ -1,5 +1,6 @@
 #!/usr/bin/env perl
 use strict;
+use utf8;
 use warnings qw(all);
 
 use Module::CoreList 2.77;
@@ -8,33 +9,48 @@ use Perl::MinimumVersion;
 use Perl::PrereqScanner;
 use Scalar::Util qw(dualvar);
 
-my $rule = Path::Iterator::Rule->new
-    ->skip_vcs
-    ->skip_dirs(qw(blib))
-    ->perl_file
-    ->not_name(qr/^(?:Build|Makefile)(?:\.PL)?$/x);
-my $iter = $rule->iter(shift @ARGV);
+core_deps_only($ARGV[0], qr/^Perl::/x, q(Path::Iterator::Rule));
 
-my (%maxver, %modver);
-while (my $file = $iter->()) {
-    _scan_file($file);
-}
+sub core_deps_only {
+    my ($path, @allowed) = @_;
 
-my %final;
-for my $modname (keys %maxver) {
-    next if $maxver{perl}->{status} >= $maxver{$modname}->{status};
-    my $info = $maxver{$modname};
-    my $guilty = $info->{guilty};
-    $modname .= qq( $modver{$guilty}->{$modname})
-        if $modver{$guilty}->{$modname};
-    $final{$modname} = $info;
-}
+    my $iter = (q(CODE) eq ref $path)
+        ? $path
+        : Path::Iterator::Rule->new
+            ->skip_vcs
+            ->skip_dirs(qw(blib))
+            ->perl_file
+            ->not_name(qr/^(?:Build|Makefile)(?:\.PL)?$/x)
+            ->iter($path || q(.));
 
-for my $modname (sort keys %final) {
-    printf qq(%s\n\tReason:\t%s\n\tWhere:\t%s\n\n),
-        $modname,
-        $final{$modname}->{status},
-        $final{$modname}->{guilty};
+    my (%maxver, %modver);
+    while (my $file = $iter->()) {
+        _scan_file($file, \%maxver, \%modver);
+    }
+
+    my %final;
+    for my $modname (keys %maxver) {
+        next if $maxver{perl}->{status} >= $maxver{$modname}->{status};
+        my $info = $maxver{$modname};
+        my $guilty = $info->{guilty};
+        $modname .= qq( $modver{$guilty}->{$modname})
+            if $modver{$guilty}->{$modname};
+        $final{$modname} = $info;
+    }
+
+    for my $modname (sort keys %final) {
+        next if grep {
+            q(Regexp) eq ref $_
+                ? $modname =~ $_
+                : $modname eq $_
+        } @allowed;
+        printf qq(%s\n\tReason:\t%s\n\tWhere:\t%s\n\n),
+            $modname,
+            $final{$modname}->{status},
+            $final{$modname}->{guilty};
+    }
+
+    return;
 }
 
 sub _dependency_versions {
@@ -67,14 +83,14 @@ sub _dependency_versions {
 }
 
 sub _scan_file {
-    my ($file) = @_;
+    my ($file, $maxver_ref, $modver_ref) = @_;
     my ($status, $modver) = _dependency_versions($file);
-    $modver{$file} = $modver;
+    $modver_ref->{$file} = $modver;
 
     while (my ($modname, $perlver) = each %{$status}) {
-        $maxver{$modname} = { status => $perlver, guilty => $file }
-            if not exists $maxver{$modname}
-            or $maxver{$modname}->{status} < $perlver;
+        $maxver_ref->{$modname} = { status => $perlver, guilty => $file }
+            if not exists $maxver_ref->{$modname}
+            or $maxver_ref->{$modname}->{status} < $perlver;
     }
 
     return;
