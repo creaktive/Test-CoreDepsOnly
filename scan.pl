@@ -2,8 +2,6 @@
 use strict;
 use warnings qw(all);
 
-use Data::Dumper;
-
 use Module::CoreList 2.77;
 use Path::Iterator::Rule;
 use Perl::MinimumVersion;
@@ -15,8 +13,7 @@ my $rule = Path::Iterator::Rule->new
     ->skip_dirs(qw(blib))
     ->perl_file
     ->not_name(qr/^(?:Build|Makefile)(?:\.PL)?$/x);
-my $iter = $rule->iter(q(../rainbarf));
-# my $iter = $rule->iter(q(.));
+my $iter = $rule->iter(shift @ARGV);
 
 my (%maxver, %modver);
 while (my $file = $iter->()) {
@@ -33,7 +30,12 @@ for my $modname (keys %maxver) {
     $final{$modname} = $info;
 }
 
-print Dumper \%final;
+for my $modname (sort keys %final) {
+    printf qq(%s\n\tReason:\t%s\n\tWhere:\t%s\n\n),
+        $modname,
+        $final{$modname}->{status},
+        $final{$modname}->{guilty};
+}
 
 sub _dependency_versions {
     my ($file) = @_;
