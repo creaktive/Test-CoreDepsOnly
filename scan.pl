@@ -23,9 +23,9 @@ sub core_deps_only {
             ->not_name(qr/^(?:Build|Makefile)(?:\.PL)?$/x)
             ->iter($path || q(.));
 
-    my (%maxver, %modver);
+    my (%maxver, %modver, %provided);
     while (my $file = $iter->()) {
-        _scan_file($file, \%maxver, \%modver);
+        _scan_file($file, \%maxver, \%modver, \%provided);
     }
 
     my %final;
@@ -39,7 +39,9 @@ sub core_deps_only {
     }
 
     for my $modname (sort keys %final) {
-        next if grep {
+        next
+            if $provided{$modname}
+            or grep {
             q(Regexp) eq ref $_
                 ? $modname =~ $_
                 : $modname eq $_
@@ -61,6 +63,11 @@ sub _dependency_versions {
         ->scan_ppi_document($doc)
         ->as_string_hash;
 
+    my $pkgs = $doc->find(q(PPI::Statement::Package));
+    my @pkgs = map {
+        ($_->children)[2]->content
+    } @{$pkgs || []};
+
     my $ver = defined $mod->{perl}
         ? delete $mod->{perl}
         : Perl::MinimumVersion->new($doc)->minimum_version;
@@ -79,12 +86,13 @@ sub _dependency_versions {
     ] } keys %$mod;
 
     $status{perl} = $mod->{perl} = $ver;
-    return \%status => $mod;
+    return \%status => $mod => \@pkgs;
 }
 
 sub _scan_file {
-    my ($file, $maxver_ref, $modver_ref) = @_;
-    my ($status, $modver) = _dependency_versions($file);
+    my ($file, $maxver_ref, $modver_ref, $provided_ref) = @_;
+    my ($status, $modver, $pkgs) = _dependency_versions($file);
+    ++$provided_ref->{$_} for @$pkgs;
     $modver_ref->{$file} = $modver;
 
     while (my ($modname, $perlver) = each %{$status}) {
