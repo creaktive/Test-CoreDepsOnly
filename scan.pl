@@ -9,10 +9,34 @@ use Perl::MinimumVersion;
 use Perl::PrereqScanner;
 use Scalar::Util qw(dualvar);
 
-core_deps_only($ARGV[0], qr/^Perl::/x, q(Path::Iterator::Rule));
+test_core_deps_only($ARGV[0], qr/^Perl::/x, q(Path::Iterator::Rule));
+
+sub test_core_deps_only {
+    my ($path, @allowed) = @_;
+
+    my ($final, $whitelist) = core_deps_only($path);
+
+    @allowed = grep {
+        q(Regexp) eq ref $_
+        or not ++$whitelist->{$_}
+    } @allowed;
+
+    for my $modname (sort keys %$final) {
+        next
+            if $whitelist->{$modname}
+            or grep { $modname =~ $_ } @allowed;
+
+        printf qq(# %s\n#\tReason:\t%s\n#\tWhere:\t%s\n#\n),
+            $modname,
+            $final->{$modname}{reason},
+            $final->{$modname}{where};
+    }
+
+    return;
+}
 
 sub core_deps_only {
-    my ($path, @allowed) = @_;
+    my ($path) = @_;
 
     my $iter = (q(CODE) eq ref $path)
         ? $path
@@ -24,10 +48,6 @@ sub core_deps_only {
             ->iter($path || q(.));
 
     my (%maxver, %modver, %whitelist);
-    @allowed = grep {
-        q(Regexp) eq ref $_
-        or not ++$whitelist{$_}
-    } @allowed;
     while (my $file = $iter->()) {
         _scan_file($file, \%maxver, \%modver, \%whitelist);
     }
@@ -42,17 +62,7 @@ sub core_deps_only {
         $final{$modname} = $info;
     }
 
-    for my $modname (sort keys %final) {
-        next
-            if $whitelist{$modname}
-            or grep { $modname =~ $_ } @allowed;
-        printf qq(%s\n\tReason:\t%s\n\tWhere:\t%s\n\n),
-            $modname,
-            $final{$modname}->{reason},
-            $final{$modname}->{where};
-    }
-
-    return;
+    return \%final => \%whitelist;
 }
 
 sub _dependency_versions {
