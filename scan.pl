@@ -23,33 +23,33 @@ sub core_deps_only {
             ->not_name(qr/^(?:Build|Makefile)(?:\.PL)?$/x)
             ->iter($path || q(.));
 
-    my (%maxver, %modver, %provided);
+    my (%maxver, %modver, %whitelist);
+    @allowed = grep {
+        q(Regexp) eq ref $_
+        or not ++$whitelist{$_}
+    } @allowed;
     while (my $file = $iter->()) {
-        _scan_file($file, \%maxver, \%modver, \%provided);
+        _scan_file($file, \%maxver, \%modver, \%whitelist);
     }
 
     my %final;
     for my $modname (keys %maxver) {
-        next if $maxver{perl}->{status} >= $maxver{$modname}->{status};
+        next if $maxver{perl}->{reason} >= $maxver{$modname}->{reason};
         my $info = $maxver{$modname};
-        my $guilty = $info->{guilty};
-        $modname .= qq( $modver{$guilty}->{$modname})
-            if $modver{$guilty}->{$modname};
+        my $where = $info->{where};
+        $modname .= qq( $modver{$where}->{$modname})
+            if $modver{$where}->{$modname};
         $final{$modname} = $info;
     }
 
     for my $modname (sort keys %final) {
         next
-            if $provided{$modname}
-            or grep {
-            q(Regexp) eq ref $_
-                ? $modname =~ $_
-                : $modname eq $_
-        } @allowed;
+            if $whitelist{$modname}
+            or grep { $modname =~ $_ } @allowed;
         printf qq(%s\n\tReason:\t%s\n\tWhere:\t%s\n\n),
             $modname,
-            $final{$modname}->{status},
-            $final{$modname}->{guilty};
+            $final{$modname}->{reason},
+            $final{$modname}->{where};
     }
 
     return;
@@ -74,7 +74,7 @@ sub _dependency_versions {
     $ver = $ver->numify if q(version) eq ref $ver;
 
     my $tmp;
-    my %status = map { @$_[0 .. 1] } map { (
+    my %reason = map { @$_[0 .. 1] } map { (
         defined($tmp = Module::CoreList::removed_from($_))
             && [$_  => dualvar 999 => qq(removed from Perl $tmp)]
     ) or (
@@ -85,20 +85,20 @@ sub _dependency_versions {
                     => dualvar 999 => q(not in CORE)
     ] } keys %$mod;
 
-    $status{perl} = $mod->{perl} = $ver;
-    return \%status => $mod => \@pkgs;
+    $reason{perl} = $mod->{perl} = $ver;
+    return \%reason => $mod => \@pkgs;
 }
 
 sub _scan_file {
     my ($file, $maxver_ref, $modver_ref, $provided_ref) = @_;
-    my ($status, $modver, $pkgs) = _dependency_versions($file);
+    my ($reason, $modver, $pkgs) = _dependency_versions($file);
     ++$provided_ref->{$_} for @$pkgs;
     $modver_ref->{$file} = $modver;
 
-    while (my ($modname, $perlver) = each %{$status}) {
-        $maxver_ref->{$modname} = { status => $perlver, guilty => $file }
+    while (my ($modname, $perlver) = each %{$reason}) {
+        $maxver_ref->{$modname} = { reason => $perlver, where => $file }
             if not exists $maxver_ref->{$modname}
-            or $maxver_ref->{$modname}->{status} < $perlver;
+            or $maxver_ref->{$modname}->{reason} < $perlver;
     }
 
     return;
