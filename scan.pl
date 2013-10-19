@@ -42,9 +42,9 @@ sub core_deps_only {
         ? $path
         : Path::Iterator::Rule->new
             ->skip_vcs
-            ->skip_dirs(qw(blib))
+            ->skip_dirs(qw(blib eg examples))
             ->perl_file
-            ->not_name(qr/^(?:Build|Makefile)(?:\.PL)?$/x)
+            ->not_name(qr{^(?:author|release).+\.t$}x)
             ->iter($path || q(.));
 
     my (%maxver, %modver, %whitelist);
