@@ -8,12 +8,14 @@ use Path::Iterator::Rule;
 use Perl::MinimumVersion;
 use Perl::PrereqScanner;
 use Scalar::Util qw(dualvar);
+use Test::Builder;
 
-test_core_deps_only($ARGV[0], qr/^Perl::/x, q(Path::Iterator::Rule));
+all_core_deps_only_ok($ARGV[0], qr/^Perl::/x, q(Path::Iterator::Rule));
 
-sub test_core_deps_only {
+sub all_core_deps_only_ok {
     my ($path, @allowed) = @_;
 
+    my $Test = Test::Builder->new;
     my ($final, $whitelist) = core_deps_only($path);
 
     @allowed = grep {
@@ -26,10 +28,8 @@ sub test_core_deps_only {
             if $whitelist->{$modname}
             or grep { $modname =~ $_ } @allowed;
 
-        printf qq(# %s\n#\tReason:\t%s\n#\tWhere:\t%s\n#\n),
-            $modname,
-            $final->{$modname}{reason},
-            $final->{$modname}{where};
+        $Test->ok(0 => $final->{$modname}{where});
+        $Test->diag(qq(\t$modname => $final->{$modname}{reason}));
     }
 
     return;
